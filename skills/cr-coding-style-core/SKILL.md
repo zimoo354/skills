@@ -1,5 +1,5 @@
 ---
-name: coding-style-core
+name: cr-coding-style-core
 description: Core coding style for application and feature work. Use when implementing features, refactoring app code, naming files/functions, or deciding whether to extract helpers/components.
 ---
 

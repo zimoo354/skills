@@ -1,5 +1,5 @@
 ---
-name: backend-style-t3-trpc
+name: cr-backend-style-t3-trpc
 description: Backend style for create-t3-app and tRPC projects. Use when creating or refactoring routers, procedures, zod schemas, and router-local backend utilities.
 ---
 

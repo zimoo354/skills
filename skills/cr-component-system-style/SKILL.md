@@ -1,5 +1,5 @@
 ---
-name: component-system-style
+name: cr-component-system-style
 description: Shared component system preferences. Use when building reusable UI primitives, wrapping headless libraries, or designing teammate-friendly component APIs.
 ---
 

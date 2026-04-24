@@ -1,5 +1,5 @@
 ---
-name: tailwind-style
+name: cr-tailwind-style
 description: Tailwind styling preferences. Use when writing or refactoring UI with Tailwind, especially for layout, spacing, responsive behavior, and component-level styling decisions.
 ---
 

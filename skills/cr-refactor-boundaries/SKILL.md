@@ -1,5 +1,5 @@
 ---
-name: refactor-boundaries
+name: cr-refactor-boundaries
 description: Refactoring boundary preferences for normal feature and bug-fix work. Use when deciding how much surrounding code to change, clean up, rename, move, or restructure.
 ---
 
