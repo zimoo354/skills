@@ -77,9 +77,10 @@ Before finishing, check:
 
 ## Naming Conventions
 
+- **Always prefix new skills with `cr-`** so personal skills sort together and are easy to spot in a long list.
 - Use lowercase kebab-case for skill folder names.
 - Name skills by the preference area or workflow they control.
-- Prefer explicit names like `form-style-react-hook-form` over vague names.
+- Prefer explicit names like `cr-form-style-react-hook-form` over vague names.
 
 ## Editing Existing Skills
 
