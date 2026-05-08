@@ -4,6 +4,12 @@ These skills capture Charlie's default coding preferences in a small, reusable f
 
 ## Skills
 
+### Unified
+
+- `cr-code-style/` — **Combined coding style guide.** Merges core principles, component system, Tailwind, tRPC backend, and refactor boundaries into one skill. Use this as the default for any coding task.
+
+### Individual
+
 - `cr-coding-style-core/` — App code structure, naming, abstraction boundaries
 - `cr-tailwind-style/` — Tailwind layout/styling preferences
 - `cr-component-system-style/` — Shared component and primitive-wrapper philosophy
