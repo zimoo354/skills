@@ -51,6 +51,62 @@ Use these defaults unless the user or project conventions say otherwise.
 - Do not create custom hooks only as a cosmetic reorganization. Keep local component state in place unless the logic is truly reusable or the component has become large and logic-heavy.
 - For large or complicated React logic, extracting a hook or using context is good when it meaningfully simplifies the component.
 
+### Component Internal Structure
+
+Organize component internals top-to-bottom in this order. Keep render helpers and sub-functions inside the component body, not outside.
+
+1. **Hooks and global queries** — session, queries, mutations, derived boolean flags
+2. **State and memoized vars** — `useState`, `useMemo`, `useRef`
+3. **Effects** — `useEffect` near the top so side-effects are visible early. Avoid when possible.
+4. **Handlers** — `function handleX() { ... }` event handlers and callbacks
+5. **Renderers** — `function renderX() { ... }` sub-render helpers with early returns
+6. **Return JSX** — the actual markup, kept as clean as possible
+
+```tsx
+import { ... } from "...";
+
+type ComponentProps = {
+  // ...
+};
+
+export const Component = ({ className }: ComponentProps) => {
+  // 1. Hooks and global queries
+  const session = useSession();
+  const { mutateAsync: sendMessage } = api.chat.send.useMutation();
+  const items = api.items.list.useQuery({ active: true });
+  const hasItems = items.length > 0;
+
+  // 2. State and memoized vars
+  const [value, setValue] = useState("");
+  const filtered = useMemo(() => items.filter(...), [items]);
+
+  // 3. Effects
+  useEffect(() => { /* ... */ }, []);
+
+  // 4. Handlers
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setValue(e.target.value);
+  }
+
+  function handleSubmit() { /* ... */ }
+
+  // 5. Renderers
+  function renderPart(part: Part, i: number) {
+    if (part.type === "text") return <Text key={i} />;
+    return null;
+  }
+
+  // 6. Return JSX
+  return (
+    <div className={className}>
+      {filtered.map(renderPart)}
+    </div>
+  );
+};
+```
+
+Keep sub-render functions inside the component. They have access to component scope and read top-to-bottom with the rest of the logic. Defining them outside separates related code and requires passing more arguments.
+
 ## Refactor Boundaries
 
 ### Default Scope
