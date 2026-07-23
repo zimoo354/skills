@@ -1,5 +1,5 @@
 ---
-name: drip-code-style
+name: cr-code-style
 description: Coding style guide for all application code. Use when writing, editing, refactoring, or reviewing any code, components, UI, backend handlers, API routes, database queries, or tests.
 ---
 
