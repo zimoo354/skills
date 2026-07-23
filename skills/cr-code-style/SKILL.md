@@ -1,5 +1,5 @@
 ---
-name: cr-code-style
+name: drip-code-style
 description: Coding style guide for all application code. Use when writing, editing, refactoring, or reviewing any code, components, UI, backend handlers, API routes, database queries, or tests.
 ---
 
@@ -26,6 +26,53 @@ Use these defaults unless the user or project conventions say otherwise.
 - Prefer clear top-level buckets such as `components`, `helpers`, `server`, `lib`, or route-local files.
 - Do not create extra files or layers unless separation improves comprehension.
 
+#### Directory Organization
+
+- Group files when a directory exceeds ~8 files or contains 3+ distinct concerns.
+- Create subdirectories named by concern, not by file type. Good: `extraction/`, `backfill/`, `portfolio/`. Bad: `utils/`, `helpers/`, `types/`.
+- When a module has distinct phases (e.g., core logic vs job orchestration vs testing), separate them.
+- Keep tests colocated with their source file. See **Tests** below for unit vs integration naming. Do not create separate `__tests__/` directories unless the test suite becomes genuinely large.
+
+#### Tests
+
+Colocate tests with the module they cover: `foo.ts` → `foo.test.ts` or `foo.integration.test.ts` in the same directory.
+
+**Unit tests (`*.test.ts`, `*.test.tsx`)** — default. Mock external I/O (database, network, paid APIs). Use for logic, parsing, scoring, and orchestration where dependencies can be stubbed without losing signal.
+
+**Integration tests (`*.integration.test.ts`)** — only when the behavior under test requires real infrastructure (Postgres, FTS, vector search, full env). Expect a reachable `DATABASE_URL`, populated `.env`, and seeded corpus data. Do not add these to the default `bun test` run.
+
+| Command                    | What runs                                                           |
+| -------------------------- | ------------------------------------------------------------------- |
+| `bun test`                 | Unit tests only (`bunfig.toml` excludes `**/*.integration.test.ts`) |
+| `bun run test:integration` | Integration tests only (clears ignore patterns; 120s timeout)       |
+
+Config lives in `bunfig.toml` and `package.json` scripts — do not duplicate flags in test files.
+
+**When to choose which:** If mocking would hide the thing you are verifying, use `*.integration.test.ts`. Otherwise mock and use `*.test.ts`.
+
+**Examples in this repo:**
+
+- Unit (mocked `db`): `src/mastra/search/fetch-recent-posts-by-publication.test.ts`
+- Integration (live search): `src/mastra/search/perform-search.integration.test.ts`
+
+#### Tooling
+
+After editing application code, run format then lint on changed files:
+
+| Command        | When                                             |
+| -------------- | ------------------------------------------------ |
+| `bun run fmt`  | After editing TS/TSX — auto-fix formatting       |
+| `bun run lint` | After fmt — catch style and rule issues (oxlint) |
+
+Full command reference lives in `AGENTS.md`. Use `bun run typecheck` when types may have changed.
+
+#### Module READMEs
+
+- Complex modules (>15 files or non-obvious architecture) should include a `README.md`.
+- Keep it short: what the module does, key files and their roles, how pieces connect, entry points.
+- Write for a developer joining the project, not as API documentation.
+- Do not overexplain. If the code is clear, the README can be 5-10 lines.
+
 ### Abstraction Rules
 
 - Avoid speculative abstractions.
@@ -40,6 +87,33 @@ Use these defaults unless the user or project conventions say otherwise.
 - Prefer a little duplication over indirection that hurts readability.
 - Do not hide simple business logic behind generic utilities.
 
+### Build Minimum First
+
+- Build the smallest thing that solves the current problem.
+- Do not add types, helpers, utilities, or features for hypothetical future needs.
+- Skeleton first, expand when there is a concrete requirement.
+- If asked to "leave it ready", build the minimal scaffold — not a fully-featured SDK.
+- Batch processing, exhaustive type unions, builder helpers, and edge-case handling belong in follow-up work, not the initial commit.
+
+### Types
+
+- Prefer inline types for simple functions or components with one required type.
+- Do not create separate type files for single-use types.
+- Only extract types to an adjacent `types.ts` when you have multiple related types that are genuinely needed.
+
+```ts
+// Good: inline for simple cases
+export const UserCard = (props: { name: string; email: string }) => { ... }
+
+function sendEvent(opts: { eventType: string; userId: string }): Promise<void> { ... }
+
+// Good: adjacent types.ts when multiple types are necessary
+// src/server/auth/types.ts
+export type Session = { ... }
+export type UserRole = { ... }
+export type AuthContext = { ... }
+```
+
 ### Helper and Component Style
 
 - Helpers should be small and single-purpose.
@@ -51,63 +125,13 @@ Use these defaults unless the user or project conventions say otherwise.
 - Do not create custom hooks only as a cosmetic reorganization. Keep local component state in place unless the logic is truly reusable or the component has become large and logic-heavy.
 - For large or complicated React logic, extracting a hook or using context is good when it meaningfully simplifies the component.
 
-### Component Internal Structure
-
-Organize component internals top-to-bottom in this order. Keep render helpers and sub-functions inside the component body, not outside.
-
-1. **Hooks and global queries** — session, queries, mutations, derived boolean flags
-2. **State and memoized vars** — `useState`, `useMemo`, `useRef`
-3. **Effects** — `useEffect` near the top so side-effects are visible early. Avoid when possible.
-4. **Handlers** — `function handleX() { ... }` event handlers and callbacks
-5. **Renderers** — `function renderX() { ... }` sub-render helpers with early returns
-6. **Return JSX** — the actual markup, kept as clean as possible
-
-```tsx
-import { ... } from "...";
-
-type ComponentProps = {
-  // ...
-};
-
-export const Component = ({ className }: ComponentProps) => {
-  // 1. Hooks and global queries
-  const session = useSession();
-  const { mutateAsync: sendMessage } = api.chat.send.useMutation();
-  const items = api.items.list.useQuery({ active: true });
-  const hasItems = items.length > 0;
-
-  // 2. State and memoized vars
-  const [value, setValue] = useState("");
-  const filtered = useMemo(() => items.filter(...), [items]);
-
-  // 3. Effects
-  useEffect(() => { /* ... */ }, []);
-
-  // 4. Handlers
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setValue(e.target.value);
-  }
-
-  function handleSubmit() { /* ... */ }
-
-  // 5. Renderers
-  function renderPart(part: Part, i: number) {
-    if (part.type === "text") return <Text key={i} />;
-    return null;
-  }
-
-  // 6. Return JSX
-  return (
-    <div className={className}>
-      {filtered.map(renderPart)}
-    </div>
-  );
-};
-```
-
-Keep sub-render functions inside the component. They have access to component scope and read top-to-bottom with the rest of the logic. Defining them outside separates related code and requires passing more arguments.
-
 ## Refactor Boundaries
+
+### Diff Size Limit
+
+- Measure diff size with: `git diff main...HEAD -- ':!bun.lock' ':!*.lock' ':!node_modules/' ':!src/components/ui/' ':!.agents/' | wc -l`
+- Over 1000 lines? Consider splitting into smaller PRs. Not a hard limit—use judgment.
+- Large diffs get skimmed, not reviewed.
 
 ### Default Scope
 
@@ -368,7 +392,7 @@ export const InvoiceRow = ({ invoice }: { invoice: Invoice }) => {
 
 ```ts
 const hasExpiredState = (status: string, deletedAt: Date | null) =>
-  status === 'inactive' || deletedAt != null;
+  status === "inactive" || deletedAt != null;
 
 const isExpiredUser = hasExpiredState(user.status, user.deletedAt);
 const isExpiredAdmin = hasExpiredState(admin.status, admin.deletedAt);
@@ -378,7 +402,7 @@ const isExpiredAdmin = hasExpiredState(admin.status, admin.deletedAt);
 
 ```ts
 const isExpired = (entity: { status: string; deletedAt: Date | null }) =>
-  entity.status === 'inactive' || entity.deletedAt != null;
+  entity.status === "inactive" || entity.deletedAt != null;
 ```
 
 Use only if it really reads better in context.
@@ -386,12 +410,7 @@ Use only if it really reads better in context.
 ### Prefer ergonomic wrapper APIs for common primitives
 
 ```tsx
-<Modal
-  open={open}
-  setOpen={setOpen}
-  title="Invite member"
-  actionTrayItems={<SubmitButton />}
->
+<Modal open={open} setOpen={setOpen} title="Invite member" actionTrayItems={<SubmitButton />}>
   <InviteForm />
 </Modal>
 ```
@@ -421,7 +440,7 @@ Use only if it really reads better in context.
   description="Used for account notifications"
   error={errors.email}
   leftIcon={<MailIcon />}
-  {...register('email')}
+  {...register("email")}
 />
 ```
 
@@ -459,9 +478,9 @@ Use only if it really reads better in context.
 ### Prefer small router composition in `index.ts`
 
 ```ts
-import { createTRPCRouter } from '../../trpc';
-import * as mutations from './mutations';
-import * as queries from './queries';
+import { createTRPCRouter } from "../../trpc";
+import * as mutations from "./mutations";
+import * as queries from "./queries";
 
 export const filesRouter = createTRPCRouter({
   ...queries,
@@ -494,8 +513,8 @@ export const getFile = adminProcedure.input(FileIdSchema).query(async ({ ctx, in
 
   if (!file) {
     throw new TRPCError({
-      code: 'NOT_FOUND',
-      message: 'File not found',
+      code: "NOT_FOUND",
+      message: "File not found",
     });
   }
 
@@ -508,12 +527,12 @@ export const getFile = adminProcedure.input(FileIdSchema).query(async ({ ctx, in
 ```ts
 export const deleteFile = async ({ ctx, file }: { ctx: ProtectedTRPCContextType; file: File }) => {
   const authorizedToDelete =
-    ctx.session.roles.includes('admin') || file.uploadedById === ctx.session.user_id;
+    ctx.session.roles.includes("admin") || file.uploadedById === ctx.session.user_id;
 
   if (!authorizedToDelete) {
     throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message: '[FILES] You do not have permission to delete this file',
+      code: "UNAUTHORIZED",
+      message: "[FILES] You do not have permission to delete this file",
     });
   }
 
@@ -526,9 +545,9 @@ export const deleteFile = async ({ ctx, file }: { ctx: ProtectedTRPCContextType;
 
 ```ts
 export const formatUsd = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(amount);
 };
 ```
@@ -541,6 +560,17 @@ If touching this file already, simplifying an obvious local implementation is fi
 // Asked: add a status badge to invoices page
 // Avoid: extracting a new cross-app status helpers module
 // unless the task actually justifies it.
+```
+
+### Prefer skeleton over premature completeness
+
+```ts
+// Asked: create a client for the Twitter Conversions API, leave it ready
+// Do: types for current use, one send function, basic error handling
+export async function sendTwitterEvent(event: TwitterEvent): Promise<void> { ... }
+
+// Avoid: batch chunking, 11 event types, builder helpers, exhaustive unions
+// Add those when you actually need them
 ```
 
 ### Usually avoid: broad cleanup from a narrow request
@@ -571,6 +601,7 @@ Before finishing, check:
 - Did I avoid broad cleanup unrelated to the change?
 - Would the diff feel appropriately scoped to the request?
 - Did I preserve behavior and public surfaces unless change was necessary?
+- Did I check git diff size? Over 1000 lines—consider splitting (excluding generated/UI/agent files).
 - Did I improve developer experience compared with using primitives directly (for shared components)?
 - Did I absorb repeated wiring into shared components where applicable?
 - Did I use `gap` instead of `space-*` (when using Tailwind)?
@@ -581,3 +612,6 @@ Before finishing, check:
 - Are queries and mutations easy to find (when using tRPC)?
 - Is domain-specific logic kept close to the router (when using tRPC)?
 - Is the procedure flow explicit and easy to scan (when using tRPC)?
+- Is the test colocated, with the right suffix (`*.test.ts` vs `*.integration.test.ts`), and the right I/O strategy (mocked vs live)?
+- Did I run `bun run fmt` on changed files?
+- Did I run `bun run lint` on changed files?
